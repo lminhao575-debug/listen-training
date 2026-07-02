@@ -112,6 +112,9 @@
   .ref-q { font-weight: 700; margin-top: 14px; }
   .ref-dim { font-size: .85rem; color: #B09468; margin-left: 6px; font-weight: 400; }
   .parent-link { display: block; text-align: center; margin-top: 22px; background: none; border: none; color: #C4AD88; font-size: .95rem; cursor: pointer; width: 100%; }
+  .quiz-nav { display: flex; gap: 10px; }
+  .quiz-nav .nav-sm { font-size: 1.05rem; padding: 12px; margin-top: 12px; color: #8A7355; }
+  .quiz-nav .nav-sm:disabled { opacity: .4; }
   .ref-box {
     background: #FFF6E4; border: 1px dashed #E3CBA0; border-radius: 14px;
     padding: 12px 14px; margin-top: 10px; font-size: .95rem; line-height: 1.7; color: #7A6647;
@@ -146,9 +149,11 @@ const Z = {
   finished: '已|ㄧˇ 聽|ㄊㄧㄥ 完|ㄨㄢˊ 的|˙ㄉㄜ 故|ㄍㄨˋ 事|˙ㄕ',
   canReplay: '可|ㄎㄜˇ 以|ㄧˇ 再|ㄗㄞˋ 聽|ㄊㄧㄥ 一|ㄧ 次|ㄘˋ',
   allDone: '全|ㄑㄩㄢˊ 部|ㄅㄨˋ 聽|ㄊㄧㄥ 完|ㄨㄢˊ 啦|˙ㄌㄚ ！',
+  prev: '上|ㄕㄤˋ 一|ㄧ 題|ㄊㄧˊ',
+  backStory: '回|ㄏㄨㄟˊ 故|ㄍㄨˋ 事|˙ㄕ',
 };
 const QLABELS = ['第|ㄉㄧˋ 一|ㄧ 題|ㄊㄧˊ', '第|ㄉㄧˋ 二|ㄦˋ 題|ㄊㄧˊ', '第|ㄉㄧˋ 三|ㄙㄢ 題|ㄊㄧˊ', '第|ㄉㄧˋ 四|ㄙˋ 題|ㄊㄧˊ'];
-const QEMOJI = ['🧠', '🤔', '💗', '🌟'];
+const QEMOJI = ['🧠', '🔍', '🤔', '💗'];
 const SHELF_SIZE = 5;
 
 let DATA = null;
@@ -218,6 +223,7 @@ function renderList() {
   el.querySelectorAll('.story-card').forEach(b => b.onclick = () => {
     state.story = DATA.stories.find(s => s.id === b.dataset.id);
     state.listened = false;
+    state.qIndex = 0;
     renderPlay(); show('play');
   });
 }
@@ -250,7 +256,7 @@ function renderPlay() {
     if (player.paused) { player.play(); btnPlay.textContent = '⏸'; }
     else { player.pause(); btnPlay.textContent = '▶'; }
   };
-  btnQuiz.onclick = () => { stopAudio(); state.qIndex = 0; renderQuiz(); show('quiz'); };
+  btnQuiz.onclick = () => { stopAudio(); renderQuiz(); show('quiz'); };
 }
 
 function renderQuiz() {
@@ -268,6 +274,10 @@ function renderQuiz() {
     <p class="quiz-hint">💬 ${ruby(Z.quizHint)}</p>
     <div class="dots">${qs.map((_, i) => `<div class="dot ${i <= state.qIndex ? 'on' : ''}"></div>`).join('')}</div>
     <button class="btn ${last ? 'secondary' : 'primary'}" id="btn-next">${ruby(last ? Z.finish : Z.next)}</button>
+    <div class="quiz-nav">
+      <button class="btn plain nav-sm" id="btn-prev" ${state.qIndex === 0 ? 'disabled' : ''}>⬅️ ${ruby(Z.prev)}</button>
+      <button class="btn plain nav-sm" id="btn-story">🔁 ${ruby(Z.backStory)}</button>
+    </div>
     <button class="parent-link" id="btn-ref">🔑 參考答案（家長看）</button>
     <div class="ref-box" id="ref-box" hidden>
       <span class="ref-dim">（${q.dim}）</span>${state.story.refs[state.qIndex]}
@@ -276,6 +286,10 @@ function renderQuiz() {
     const box = el.querySelector('#ref-box');
     box.hidden = !box.hidden;
   };
+  el.querySelector('#btn-prev').onclick = () => {
+    if (state.qIndex > 0) { stopAudio(); state.qIndex--; renderQuiz(); show('quiz'); }
+  };
+  el.querySelector('#btn-story').onclick = () => { stopAudio(); renderPlay(); show('play'); };
   el.querySelector('#btn-speak').onclick = () => {
     player.src = `audio/${state.story.id}q${state.qIndex + 1}.mp3`;
     player.play();
@@ -296,7 +310,7 @@ function renderDone() {
     <button class="btn secondary" id="btn-another">📚 ${ruby(Z.another)}</button>
     <button class="btn plain" id="btn-home">🏠 ${ruby(Z.home)}</button>
     <button class="parent-link" id="btn-parent">家長對照區（給爸爸媽媽看的）</button>`;
-  el.querySelector('#btn-again').onclick = () => { state.listened = false; renderPlay(); show('play'); };
+  el.querySelector('#btn-again').onclick = () => { state.listened = false; state.qIndex = 0; renderPlay(); show('play'); };
   el.querySelector('#btn-another').onclick = () => { renderList(); show('list'); };
   el.querySelector('#btn-home').onclick = () => show('home');
   el.querySelector('#btn-parent').onclick = () => { renderParent(); show('parent'); };
@@ -318,10 +332,14 @@ function renderParent() {
         <p>${s.refs[i]}</p>`).join('')}
     </div>
     <div class="parent-block">
+      <h3>🗣️ 延伸聊天（親子開放題，不列入答題）</h3>
+      <p>${s.extend}</p>
+    </div>
+    <div class="parent-block">
       <h3>💡 使用小提示</h3>
-      <p>・答案不必和參考一模一樣，孩子有講到重點、能用自己的話說出來就算好。</p>
-      <p>・第 3、4 題沒有標準答案，重點是讓孩子練習表達感受和想法，多問「還有呢？」。</p>
-      <p>・回答卡住時，可以讓他「再聽一次」再答，這也是很好的訓練。</p>
+      <p>・答案不必和參考一模一樣，有講到重點、能用自己的話說出來就算好。</p>
+      <p>・第四題（情緒）沒有唯一答案，重點是他有沒有接住故事裡的情緒線索，多問「還有呢？」。</p>
+      <p>・回答卡住時，按「🔁 回故事」重聽一次再答，這也是很好的訓練。</p>
     </div>`;
   el.querySelector('.back-link').onclick = () => show('done');
 }
