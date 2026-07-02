@@ -103,6 +103,10 @@
   .ref-q { font-weight: 700; margin-top: 14px; }
   .ref-dim { font-size: .85rem; color: #B09468; margin-left: 6px; font-weight: 400; }
   .parent-link { display: block; text-align: center; margin-top: 22px; background: none; border: none; color: #C4AD88; font-size: .95rem; cursor: pointer; width: 100%; }
+  .ref-box {
+    background: #FFF6E4; border: 1px dashed #E3CBA0; border-radius: 14px;
+    padding: 12px 14px; margin-top: 10px; font-size: .95rem; line-height: 1.7; color: #7A6647;
+  }
 </style>
 </head>
 <body>
@@ -236,7 +240,15 @@ function renderQuiz() {
     </div>
     <p class="quiz-hint">💬 ${ruby(Z.quizHint)}</p>
     <div class="dots">${DATA.questions.map((_, i) => `<div class="dot ${i <= state.qIndex ? 'on' : ''}"></div>`).join('')}</div>
-    <button class="btn ${last ? 'secondary' : 'primary'}" id="btn-next">${ruby(last ? Z.finish : Z.next)}</button>`;
+    <button class="btn ${last ? 'secondary' : 'primary'}" id="btn-next">${ruby(last ? Z.finish : Z.next)}</button>
+    <button class="parent-link" id="btn-ref">🔑 參考答案（家長看）</button>
+    <div class="ref-box" id="ref-box" hidden>
+      <span class="ref-dim">（${DIMS[state.qIndex]}）</span>${state.story.refs[state.qIndex]}
+    </div>`;
+  el.querySelector('#btn-ref').onclick = () => {
+    const box = el.querySelector('#ref-box');
+    box.hidden = !box.hidden;
+  };
   el.querySelector('#btn-speak').onclick = () => {
     player.src = `audio/${q.id}.mp3`;
     player.play();
