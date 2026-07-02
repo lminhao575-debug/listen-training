@@ -291,7 +291,7 @@ function renderQuiz() {
   };
   el.querySelector('#btn-story').onclick = () => { stopAudio(); renderPlay(); show('play'); };
   el.querySelector('#btn-speak').onclick = () => {
-    player.src = `audio/${state.story.id}q${state.qIndex + 1}.mp3`;
+    player.src = `audio/${state.story.id}q${state.qIndex + 1}.mp3?v=2`;
     player.play();
   };
   el.querySelector('#btn-next').onclick = () => {
