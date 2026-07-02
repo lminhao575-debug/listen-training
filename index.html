@@ -60,7 +60,8 @@
     display: flex; align-items: center; justify-content: space-between; cursor: pointer; text-align: left;
   }
   .story-card:active { transform: scale(.98); }
-  .story-card .star { font-size: 1.5rem; }
+  .story-card.finished { opacity: .62; padding: 14px 18px; font-size: 1.15rem; }
+  .finished-header { text-align: center; color: #B09468; font-size: 1rem; margin: 26px 0 12px; }
 
   .play-wrap { text-align: center; padding-top: 8px; }
   .play-topic-emoji { font-size: 3.4rem; margin: 6px 0; }
@@ -142,8 +143,13 @@ const Z = {
   great: '太|ㄊㄞˋ 棒|ㄅㄤˋ 了|˙ㄌㄜ ！',
   another: '換|ㄏㄨㄢˋ 一|ㄧ 個|˙ㄍㄜ 故|ㄍㄨˋ 事|˙ㄕ',
   home: '回|ㄏㄨㄟˊ 首|ㄕㄡˇ 頁|ㄧㄝˋ',
+  finished: '已|ㄧˇ 聽|ㄊㄧㄥ 完|ㄨㄢˊ 的|˙ㄉㄜ 故|ㄍㄨˋ 事|˙ㄕ',
+  canReplay: '可|ㄎㄜˇ 以|ㄧˇ 再|ㄗㄞˋ 聽|ㄊㄧㄥ 一|ㄧ 次|ㄘˋ',
+  allDone: '全|ㄑㄩㄢˊ 部|ㄅㄨˋ 聽|ㄊㄧㄥ 完|ㄨㄢˊ 啦|˙ㄌㄚ ！',
 };
-const DIMS = ['記憶提取', '因果推論', '情緒推論', '高階應用'];
+const QLABELS = ['第|ㄉㄧˋ 一|ㄧ 題|ㄊㄧˊ', '第|ㄉㄧˋ 二|ㄦˋ 題|ㄊㄧˊ', '第|ㄉㄧˋ 三|ㄙㄢ 題|ㄊㄧˊ', '第|ㄉㄧˋ 四|ㄙˋ 題|ㄊㄧˊ'];
+const QEMOJI = ['🧠', '🤔', '💗', '🌟'];
+const SHELF_SIZE = 5;
 
 let DATA = null;
 const state = { topic: null, story: null, qIndex: 0, listened: false };
@@ -191,16 +197,23 @@ function renderHome() {
 function renderList() {
   const el = document.getElementById('screen-list');
   const done = getDone();
-  const stories = DATA.stories.filter(s => s.topic === state.topic.id);
+  const pool = DATA.stories.filter(s => s.topic === state.topic.id);
+  const shelf = pool.filter(s => !done[s.id]).slice(0, SHELF_SIZE);
+  const finished = pool.filter(s => done[s.id]);
   el.innerHTML = `
     <button class="back-link">← ${ruby(Z.home)}</button>
     <h1 class="app-title">${state.topic.emoji} ${ruby(state.topic.nameZ)}</h1>
-    <p class="subtitle">${ruby(Z.pickStory)}</p>
-    ${stories.map(s => `
+    <p class="subtitle">${shelf.length ? ruby(Z.pickStory) : '🎉 ' + ruby(Z.allDone)}</p>
+    ${shelf.map(s => `
       <button class="story-card" data-id="${s.id}">
         <span>🎧 ${ruby(s.titleZ)}</span>
-        <span class="star">${done[s.id] ? '⭐' : ''}</span>
-      </button>`).join('')}`;
+      </button>`).join('')}
+    ${finished.length ? `
+      <p class="finished-header">⭐ ${ruby(Z.finished)}（${ruby(Z.canReplay)}）</p>
+      ${finished.map(s => `
+        <button class="story-card finished" data-id="${s.id}">
+          <span>⭐ ${ruby(s.titleZ)}</span>
+        </button>`).join('')}` : ''}`;
   el.querySelector('.back-link').onclick = () => { stopAudio(); show('home'); };
   el.querySelectorAll('.story-card').forEach(b => b.onclick = () => {
     state.story = DATA.stories.find(s => s.id === b.dataset.id);
@@ -242,28 +255,29 @@ function renderPlay() {
 
 function renderQuiz() {
   const el = document.getElementById('screen-quiz');
-  const q = DATA.questions[state.qIndex];
-  const last = state.qIndex === DATA.questions.length - 1;
+  const qs = state.story.questions;
+  const q = qs[state.qIndex];
+  const last = state.qIndex === qs.length - 1;
   el.innerHTML = `
-    <p class="quiz-label">${ruby(q.label)}</p>
-    <div class="quiz-emoji">${q.emoji}</div>
+    <p class="quiz-label">${ruby(QLABELS[state.qIndex])}</p>
+    <div class="quiz-emoji">${QEMOJI[state.qIndex]}</div>
     <div class="quiz-card">
       ${ruby(q.textZ)}
       <div><button class="speak-btn" id="btn-speak">🔊 ${ruby(Z.speakQ)}</button></div>
     </div>
     <p class="quiz-hint">💬 ${ruby(Z.quizHint)}</p>
-    <div class="dots">${DATA.questions.map((_, i) => `<div class="dot ${i <= state.qIndex ? 'on' : ''}"></div>`).join('')}</div>
+    <div class="dots">${qs.map((_, i) => `<div class="dot ${i <= state.qIndex ? 'on' : ''}"></div>`).join('')}</div>
     <button class="btn ${last ? 'secondary' : 'primary'}" id="btn-next">${ruby(last ? Z.finish : Z.next)}</button>
     <button class="parent-link" id="btn-ref">🔑 參考答案（家長看）</button>
     <div class="ref-box" id="ref-box" hidden>
-      <span class="ref-dim">（${DIMS[state.qIndex]}）</span>${state.story.refs[state.qIndex]}
+      <span class="ref-dim">（${q.dim}）</span>${state.story.refs[state.qIndex]}
     </div>`;
   el.querySelector('#btn-ref').onclick = () => {
     const box = el.querySelector('#ref-box');
     box.hidden = !box.hidden;
   };
   el.querySelector('#btn-speak').onclick = () => {
-    player.src = `audio/${q.id}.mp3`;
+    player.src = `audio/${state.story.id}q${state.qIndex + 1}.mp3`;
     player.play();
   };
   el.querySelector('#btn-next').onclick = () => {
@@ -299,8 +313,8 @@ function renderParent() {
     </div>
     <div class="parent-block">
       <h3>✅ 參考答案方向</h3>
-      ${DATA.questions.map((q, i) => `
-        <p class="ref-q">${i + 1}. ${q.text}<span class="ref-dim">（${DIMS[i]}）</span></p>
+      ${s.questions.map((q, i) => `
+        <p class="ref-q">${i + 1}. ${q.text}<span class="ref-dim">（${q.dim}）</span></p>
         <p>${s.refs[i]}</p>`).join('')}
     </div>
     <div class="parent-block">
